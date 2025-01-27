@@ -3,6 +3,7 @@ import random
 import time
 from decimal import Decimal
 
+from web3.exceptions import ContractLogicError
 from web3.types import TxParams
 from capmonstercloudclient import CapMonsterClient, ClientOptions
 from capmonstercloudclient.requests import TurnstileRequest
@@ -103,80 +104,114 @@ class Hyperlend(Base):
             logger.error(f'{msg} | {self.client.account.address} | '
                          f'{round((await self.client.wallet.balance()).Ether, 6)} HYPE')
 
-    # async def swap_bera_to_ibgt(self) -> None:
-    #     """
-    #         Swaps BERA tokens for IBGT tokens via the Kodiak contract.
-    #
-    #         This function performs the following steps:
-    #         1. Checks if the user has enough BERA balance to perform the swap (adding a buffer of 0.15 BERA).
-    #         2. Calculates the amount of IBGT that will be received from the swap.
-    #         3. Constructs the transaction parameters for the swap.
-    #         4. Signs and sends the transaction to the Kodiak contract.
-    #         5. Waits for the transaction receipt and logs the success or failure.
-    #     """
-    #     logger.info(f'Starting swap of BERA to IBGT | {self.client.account.address}')
-    #
-    #     failed_text = f'Failed to swap BERA to iBGT via Kodiak'
-    #
-    #     amount = TokenAmount(amount=randfloat(from_=0.4, to_=0.43, step=0.01),
-    #                          decimals=18,
-    #                          wei=False)
-    #
-    #     balance = await self.client.wallet.balance()
-    #     required_balance = amount.Ether + Decimal('0.15')
-    #
-    #     if balance.Ether < required_balance:
-    #         logger.error(
-    #             f'Insufficient balance {round(balance.Ether, 2)} BERA | Needed {amount.Ether} BERA | '
-    #             f'{self.client.account.address}')
-    #         return
-    #
-    #     contract = await self.client.contracts.get(contract_address=Contracts.KODIAK)
-    #
-    #     amount_out_min = await self.get_amount_out(amount=amount)
-    #
-    #     exact_input_single_params = TxArgs(
-    #         params=TxArgs(
-    #             tokenIn=Contracts.WBERA.address,
-    #             tokenOut=Contracts.iBGT.address,
-    #             fee=500,
-    #             recipient=self.client.account.address,
-    #             amountIn=amount.Wei,
-    #             amountOutMinimum=int(amount_out_min.Wei * 0.995),
-    #             sqrtPriceLimitX96=0
-    #         ).tuple()
-    #     )
-    #
-    #     exact_input_single_data = contract.encodeABI('exactInputSingle', args=exact_input_single_params.tuple())
-    #     exact_input_single_data += '0' * 56
-    #     params = TxArgs(
-    #         deadline=int(time.time() + 20 * 60),
-    #         data=[exact_input_single_data]
-    #     )
-    #
-    #     data = contract.encodeABI('multicall', args=params.tuple())
-    #
-    #     # Changing 100 на 0e4 before 04e45aff in tx hash, like in UI.
-    #     updated_data = data.replace("10004e45aaf", "0e404e45aaf")
-    #
-    #     tx_params = TxParams(
-    #         to=contract.address,
-    #         data=updated_data,
-    #         value=amount.Wei,
-    #     )
-    #
-    #     tx = await self.client.transactions.sign_and_send(tx_params=tx_params)
-    #
-    #     if tx is None:
-    #         return
-    #     else:
-    #         receipt = await tx.wait_for_receipt(client=self.client, timeout=300)
-    #         if receipt:
-    #             logger.success(
-    #                 f'{amount.Ether} BERA swapped to {round(amount_out_min.Ether, 2)} '
-    #                 f'iBGT via Kodiak: {tx.hash.hex()} | {self.client.account.address}')
-    #             return
-    #         logger.error(f'{failed_text}! | {self.client.account.address}')
+    async def claim_mbtc_faucet(self) -> None:
+        logger.info(f'Starting MBTC faucet claim | {self.client.account.address}')
+
+        failed_text = f'Failed to claim MBTC faucet'
+
+        tx_params = TxParams(
+            to=Contracts.HYPERLEND_FAUCET.address,
+            data='0x4e71d92d' # Claim()
+        )
+
+        try:
+            tx = await self.client.transactions.sign_and_send(tx_params=tx_params)
+
+            if tx is None:
+                logger.error(f'{failed_text}! | {self.client.account.address}')
+                return
+
+            receipt = await tx.wait_for_receipt(client=self.client, timeout=300)
+            if receipt:
+                logger.success(
+                    f'0.1 MBTC claimed | {tx.hash.hex()} | {self.client.account.address}')
+                return
+
+            logger.error(f'{failed_text}! | {self.client.account.address}')
+
+        except ContractLogicError as e:
+            if "already claimed" in str(e):
+                logger.warning(f'Already claimed MBTC faucet | {self.client.account.address}')
+            else:
+                logger.error(f"{e} | {self.client.account.address}")
+        except Exception as e:
+            logger.error(f"{e} | {self.client.account.address}")
+
+
+    async def swap_bera_to_ibgt(self) -> None:
+        """
+            Swaps BERA tokens for IBGT tokens via the Kodiak contract.
+
+            This function performs the following steps:
+            1. Checks if the user has enough BERA balance to perform the swap (adding a buffer of 0.15 BERA).
+            2. Calculates the amount of IBGT that will be received from the swap.
+            3. Constructs the transaction parameters for the swap.
+            4. Signs and sends the transaction to the Kodiak contract.
+            5. Waits for the transaction receipt and logs the success or failure.
+        """
+        logger.info(f'Starting swap of BERA to IBGT | {self.client.account.address}')
+
+        failed_text = f'Failed to swap BERA to iBGT via Kodiak'
+
+        amount = TokenAmount(amount=randfloat(from_=0.4, to_=0.43, step=0.01),
+                             decimals=18,
+                             wei=False)
+
+        balance = await self.client.wallet.balance()
+        required_balance = amount.Ether + Decimal('0.15')
+
+        if balance.Ether < required_balance:
+            logger.error(
+                f'Insufficient balance {round(balance.Ether, 2)} BERA | Needed {amount.Ether} BERA | '
+                f'{self.client.account.address}')
+            return
+
+        contract = await self.client.contracts.get(contract_address=Contracts.KODIAK)
+
+        amount_out_min = await self.get_amount_out(amount=amount)
+
+        exact_input_single_params = TxArgs(
+            params=TxArgs(
+                tokenIn=Contracts.WBERA.address,
+                tokenOut=Contracts.iBGT.address,
+                fee=500,
+                recipient=self.client.account.address,
+                amountIn=amount.Wei,
+                amountOutMinimum=int(amount_out_min.Wei * 0.995),
+                sqrtPriceLimitX96=0
+            ).tuple()
+        )
+
+        exact_input_single_data = contract.encodeABI('exactInputSingle', args=exact_input_single_params.tuple())
+        exact_input_single_data += '0' * 56
+        params = TxArgs(
+            deadline=int(time.time() + 20 * 60),
+            data=[exact_input_single_data]
+        )
+
+        data = contract.encodeABI('multicall', args=params.tuple())
+
+        # Changing 100 на 0e4 before 04e45aff in tx hash, like in UI.
+        updated_data = data.replace("10004e45aaf", "0e404e45aaf")
+
+        tx_params = TxParams(
+            to=contract.address,
+            data=updated_data,
+            value=amount.Wei,
+        )
+
+        tx = await self.client.transactions.sign_and_send(tx_params=tx_params)
+
+        if tx is None:
+            return
+        else:
+            receipt = await tx.wait_for_receipt(client=self.client, timeout=300)
+            if receipt:
+                logger.success(
+                    f'{amount.Ether} BERA swapped to {round(amount_out_min.Ether, 2)} '
+                    f'iBGT via Kodiak: {tx.hash.hex()} | {self.client.account.address}')
+                return
+            logger.error(f'{failed_text}! | {self.client.account.address}')
     #
     # async def deposit_ibgt_bera(self) -> None:
     #     """

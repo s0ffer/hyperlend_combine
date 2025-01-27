@@ -12,6 +12,12 @@ class Contracts(Singleton):
         abi=read_json(path=(ABIS_DIR, 'kodiak_abi.json'))
     )
 
+    HYPERLEND_FAUCET = RawContract(
+        title='hyperlend_faucet',
+        address='0x941559AF458A9a0448b411a26047584b506283A7',
+        # abi=read_json(path=(ABIS_DIR, 'kodiak_abi.json'))
+    )
+
     iBGT = RawContract(
         title='ibgt',
         address='0x46eFC86F0D7455F135CC9df501673739d513E982',

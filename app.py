@@ -48,8 +48,8 @@ async def process_wallet(private_key: str, proxy: str, api_key: str, semaphore: 
             await hyperlend.claim_hype_faucet()
         # elif selected_function == 'get_bera_balance':
         #     await Hyperlend.get_bera_balance()
-        # elif selected_function == 'swap_bera_to_ibgt':
-        #     await berachain.swap_bera_to_ibgt()
+        elif selected_function == 'claim_mbtc_faucet':
+            await hyperlend.claim_mbtc_faucet()
         # elif selected_function == 'deposit_ibgt_bera':
         #     await berachain.deposit_ibgt_bera()
         # elif selected_function == 'deposit_to_ibgt_wbera_station':
@@ -109,7 +109,7 @@ async def main():
     functions = [
         ('claim_hype_faucet', 'Claim HYPE Faucet'),
         # ('get_bera_balance', 'Get BERA balance'),
-        # ('swap_bera_to_ibgt', 'Swap BERA to IBGT'),
+        ('claim_mbtc_faucet', 'Claim MBTC Faucet'),
         # ('deposit_ibgt_bera', 'Deposit IBGT-BERA'),
         # ('deposit_to_ibgt_wbera_station', 'Deposit to IBGT-WBera Station'),
         # ('get_bgt_reward', 'Get BGT Reward'),
