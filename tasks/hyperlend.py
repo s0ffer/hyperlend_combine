@@ -41,6 +41,13 @@ class Hyperlend(Base):
                   and time restrictions on claiming.
                 - Logs various stages of the process to track the claim status.
         """
+        current_balance = await self.client.wallet.balance()
+
+        if current_balance.Wei > 0:
+            logger.warning(f'Already claimed, once per wallet! | {self.client.account.address} | '
+                           f'{round((await self.client.wallet.balance()).Ether, 6)} HYPE')
+            return
+
         faucet_url = 'https://testnet.hyperlend.finance/dashboard'
         website_key = '0x4AAAAAAA2Qg1SB87LOUhrG'
         logger.info(f'Starting HYPE faucet claim | {self.client.account.address}')
@@ -88,9 +95,22 @@ class Hyperlend(Base):
                                'directly incentivized, and mainnet airdrop will be linear with a minimum threshold.',
             }
 
-            response = await client.post('https://api.hyperlend.finance/ethFaucet',
-                                         headers=headers,
-                                         json=json_data)
+            max_attempts = 2
+            attempt = 0
+            while attempt <= max_attempts:
+                try:
+                    response = await client.post('https://api.hyperlend.finance/ethFaucet',
+                                             headers=headers,
+                                             json=json_data)
+                    break
+                except Exception as e:
+                    logger.warning(f'Failed request, {attempt}/{max_attempts} attempt | {self.client.account.address}')
+                    attempt += 1
+                    if attempt == max_attempts:
+                        logger.error(f'Failed request: {e} | {self.client.account.address}')
+                        return
+                    await asyncio.sleep(5)
+
 
         result = response.json()
         msg = result.get("response", "")
@@ -98,7 +118,7 @@ class Hyperlend(Base):
             logger.success(f'Claimed native tokens | {self.client.account.address} | '
                            f'{round((await self.client.wallet.balance()).Ether, 6)} HYPE')
         elif 'user_already_claimed' in msg:
-            logger.error(f'Already claimed, once per wallet! | {self.client.account.address} | '
+            logger.warning(f'Already claimed, once per wallet! | {self.client.account.address} | '
                          f'{round((await self.client.wallet.balance()).Ether, 6)} HYPE')
         else:
             logger.error(f'{msg} | {self.client.account.address} | '
