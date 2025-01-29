@@ -1,5 +1,6 @@
 private_keys.txt
 proxies.txt
 api_key.txt
+test.py
 .idea
 venv

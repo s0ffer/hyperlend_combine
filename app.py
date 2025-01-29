@@ -3,9 +3,11 @@ from asyncio import Semaphore
 from prompt_toolkit.shortcuts import radiolist_dialog, input_dialog
 from prompt_toolkit.styles import Style
 
+from random import uniform
+
 from tasks.hyperlend import Hyperlend
 from eth_async.client import Client
-from eth_async.data.models import Networks
+from eth_async.data.models import Networks, TokenAmount
 from utils import logger, format_proxy, load_file
 
 
@@ -13,7 +15,7 @@ async def process_wallet(private_key: str, proxy: str, api_key: str, semaphore: 
     """
         Processes a wallet using the provided private key, proxy, and selected function.
 
-        This function interacts with the Berachain network to execute the specified
+        This function interacts with the HyperEVM network to execute the specified
         function, such as claiming faucet, checking balance, swapping tokens, etc.
 
         Args:
@@ -22,14 +24,7 @@ async def process_wallet(private_key: str, proxy: str, api_key: str, semaphore: 
             api_key (str): The API key for Capmonster service.
             semaphore (Semaphore): The semaphore to control concurrent execution.
             selected_function (str): The selected function to execute. Valid options:
-                - 'claim_faucet'
-                - 'get_bera_balance'
-                - 'swap_bera_to_ibgt'
-                - 'deposit_ibgt_bera'
-                - 'deposit_to_ibgt_wbera_station'
-                - 'get_bgt_reward'
-                - 'delegate_bgt_to_validator'
-                - 'confirm_delegation'
+                - ???? -
 
         Returns:
             None: This function performs an action but does not return a value.
@@ -46,20 +41,16 @@ async def process_wallet(private_key: str, proxy: str, api_key: str, semaphore: 
 
         if selected_function == 'claim_hype_faucet':
             await hyperlend.claim_hype_faucet()
-        # elif selected_function == 'get_bera_balance':
-        #     await Hyperlend.get_bera_balance()
+        # elif selected_function == 'get_balances':
+        #     await Hyperlend.get_balances()
         elif selected_function == 'claim_mbtc_faucet':
             await hyperlend.claim_mbtc_faucet()
-        # elif selected_function == 'deposit_ibgt_bera':
-        #     await berachain.deposit_ibgt_bera()
-        # elif selected_function == 'deposit_to_ibgt_wbera_station':
-        #     await berachain.deposit_to_ibgt_wbera_station()
-        # elif selected_function == 'get_bgt_reward':
-        #     await berachain.get_bgt_reward()
-        # elif selected_function == 'delegate_bgt_to_validator':
-        #     await berachain.delegate_bgt_to_validator()
-        # elif selected_function == 'confirm_delegation':
-        #     await berachain.confirm_delegation()
+        elif selected_function == 'supply_mbtc':
+            await hyperlend.supply_mbtc(amount=TokenAmount(amount=round(uniform(0.01, 0.02), 4), decimals=8))
+        elif selected_function == 'supply_eth':
+            await hyperlend.supply_eth(amount=TokenAmount(amount=round(uniform(0.0001, 0.0005), 5)))
+        elif selected_function == 'supply_hype':
+            await hyperlend.supply_hype(amount=TokenAmount(amount=round(uniform(0.0001, 0.0005), 5)))
 
 
 async def main():
@@ -108,13 +99,11 @@ async def main():
 
     functions = [
         ('claim_hype_faucet', 'Claim HYPE Faucet'),
-        # ('get_bera_balance', 'Get BERA balance'),
+        # ('get_balances', 'Get token balances'),
         ('claim_mbtc_faucet', 'Claim MBTC Faucet'),
-        # ('deposit_ibgt_bera', 'Deposit IBGT-BERA'),
-        # ('deposit_to_ibgt_wbera_station', 'Deposit to IBGT-WBera Station'),
-        # ('get_bgt_reward', 'Get BGT Reward'),
-        # ('delegate_bgt_to_validator', 'Delegate BGT to Validator'),
-        # ('confirm_delegation', 'Confirm Delegation'),
+        ('supply_mbtc', 'Supply MBTC'),
+        ('supply_eth', 'Supply ETH'),
+        ('supply_hype', 'Supply HYPE'),
     ]
 
     selected_function = await radiolist_dialog(
